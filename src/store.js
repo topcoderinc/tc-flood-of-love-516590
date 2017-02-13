@@ -9,7 +9,7 @@ export const store = new Vuex.Store({
 			"A word to describe your average day",
 			"A bad place to wake up",
 			"Something you do while you're alone", 
-			"A word to describe the death of pet",
+			"A word to describe the death of a pet",
 			"Name of your valentine or someone you would like to have as a valentine",
 			"Your name",
 			"Favorite programming language",
