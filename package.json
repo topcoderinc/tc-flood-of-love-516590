@@ -7,7 +7,9 @@
     "serve": "webpack-dev-server --port 3000 --open",
     "watch": "webpack --progress --watch",
     "build": "NODE_ENV=production webpack --config ./webpack.config.js --progress --colors",
-    "start": "webpack-dev-server --port $PORT"
+    "heroku-postbuild": "webpack -p --config ./webpack.config.js --progress",
+    "postinstall": "npm install express",
+    "start": "node server"
   },
   "keywords": [],
   "author": "",
