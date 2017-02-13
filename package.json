@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "serve": "webpack-dev-server --port 3000 --open",
-    "watch": "webpack --progress --watch"
+    "watch": "webpack --progress --watch",
+    "build": "NODE_ENV=production webpack --config ./webpack.prod.config.js --progress --colors",
+    "start": "node ./src/index.js"
   },
   "keywords": [],
   "author": "",
