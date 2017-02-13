@@ -63,7 +63,7 @@
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 3);
+/******/ 	return __webpack_require__(__webpack_require__.s = 6);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -8640,10 +8640,722 @@ Vue$3.compile = compileToFunctions;
 
 module.exports = Vue$3;
 
-/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(1), __webpack_require__(2)))
+/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(3), __webpack_require__(5)))
 
 /***/ }),
 /* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*
+ * Anime v1.1.3
+ * http://anime-js.com
+ * JavaScript animation engine
+ * Copyright (c) 2016 Julian Garnier
+ * http://juliangarnier.com
+ * Released under the MIT license
+ */
+
+(function (root, factory) {
+  if (true) {
+    // AMD. Register as an anonymous module.
+    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory),
+				__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
+				(__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__),
+				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+  } else if (typeof module === 'object' && module.exports) {
+    // Node. Does not work with strict CommonJS, but
+    // only CommonJS-like environments that support module.exports,
+    // like Node.
+    module.exports = factory();
+  } else {
+    // Browser globals (root is window)
+    root.anime = factory();
+  }
+}(this, function () {
+
+  var version = '1.1.3';
+
+  // Defaults
+
+  var defaultSettings = {
+    duration: 1000,
+    delay: 0,
+    loop: false,
+    autoplay: true,
+    direction: 'normal',
+    easing: 'easeOutElastic',
+    elasticity: 400,
+    round: false,
+    begin: undefined,
+    update: undefined,
+    complete: undefined
+  }
+
+  // Transforms
+
+  var validTransforms = ['translateX', 'translateY', 'translateZ', 'rotate', 'rotateX', 'rotateY', 'rotateZ', 'scale', 'scaleX', 'scaleY', 'scaleZ', 'skewX', 'skewY'];
+  var transform, transformStr = 'transform';
+
+  // Utils
+
+  var is = {
+    arr: function(a) { return Array.isArray(a) },
+    obj: function(a) { return Object.prototype.toString.call(a).indexOf('Object') > -1 },
+    svg: function(a) { return a instanceof SVGElement },
+    dom: function(a) { return a.nodeType || is.svg(a) },
+    num: function(a) { return !isNaN(parseInt(a)) },
+    str: function(a) { return typeof a === 'string' },
+    fnc: function(a) { return typeof a === 'function' },
+    und: function(a) { return typeof a === 'undefined' },
+    nul: function(a) { return typeof a === 'null' },
+    hex: function(a) { return /(^#[0-9A-F]{6}$)|(^#[0-9A-F]{3}$)/i.test(a) },
+    rgb: function(a) { return /^rgb/.test(a) },
+    hsl: function(a) { return /^hsl/.test(a) },
+    col: function(a) { return (is.hex(a) || is.rgb(a) || is.hsl(a)) }
+  }
+
+  // Easings functions adapted from http://jqueryui.com/
+
+  var easings = (function() {
+    var eases = {};
+    var names = ['Quad', 'Cubic', 'Quart', 'Quint', 'Expo'];
+    var functions = {
+      Sine: function(t) { return 1 + Math.sin(Math.PI / 2 * t - Math.PI / 2); },
+      Circ: function(t) { return 1 - Math.sqrt( 1 - t * t ); },
+      Elastic: function(t, m) {
+        if( t === 0 || t === 1 ) return t;
+        var p = (1 - Math.min(m, 998) / 1000), st = t / 1, st1 = st - 1, s = p / ( 2 * Math.PI ) * Math.asin( 1 );
+        return -( Math.pow( 2, 10 * st1 ) * Math.sin( ( st1 - s ) * ( 2 * Math.PI ) / p ) );
+      },
+      Back: function(t) { return t * t * ( 3 * t - 2 ); },
+      Bounce: function(t) {
+        var pow2, bounce = 4;
+        while ( t < ( ( pow2 = Math.pow( 2, --bounce ) ) - 1 ) / 11 ) {}
+        return 1 / Math.pow( 4, 3 - bounce ) - 7.5625 * Math.pow( ( pow2 * 3 - 2 ) / 22 - t, 2 );
+      }
+    }
+    names.forEach(function(name, i) {
+      functions[name] = function(t) {
+        return Math.pow( t, i + 2 );
+      }
+    });
+    Object.keys(functions).forEach(function(name) {
+      var easeIn = functions[name];
+      eases['easeIn' + name] = easeIn;
+      eases['easeOut' + name] = function(t, m) { return 1 - easeIn(1 - t, m); };
+      eases['easeInOut' + name] = function(t, m) { return t < 0.5 ? easeIn(t * 2, m) / 2 : 1 - easeIn(t * -2 + 2, m) / 2; };
+      eases['easeOutIn' + name] = function(t, m) { return t < 0.5 ? (1 - easeIn(1 - 2 * t, m)) / 2 : (easeIn(t * 2 - 1, m) + 1) / 2; };
+    });
+    eases.linear = function(t) { return t; };
+    return eases;
+  })();
+
+  // Strings
+
+  var numberToString = function(val) {
+    return (is.str(val)) ? val : val + '';
+  }
+
+  var stringToHyphens = function(str) {
+    return str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
+  }
+
+  var selectString = function(str) {
+    if (is.col(str)) return false;
+    try {
+      var nodes = document.querySelectorAll(str);
+      return nodes;
+    } catch(e) {
+      return false;
+    }
+  }
+
+  // Numbers
+
+  var random = function(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  // Arrays
+
+  var flattenArray = function(arr) {
+    return arr.reduce(function(a, b) {
+      return a.concat(is.arr(b) ? flattenArray(b) : b);
+    }, []);
+  }
+
+  var toArray = function(o) {
+    if (is.arr(o)) return o;
+    if (is.str(o)) o = selectString(o) || o;
+    if (o instanceof NodeList || o instanceof HTMLCollection) return [].slice.call(o);
+    return [o];
+  }
+
+  var arrayContains = function(arr, val) {
+    return arr.some(function(a) { return a === val; });
+  }
+
+  var groupArrayByProps = function(arr, propsArr) {
+    var groups = {};
+    arr.forEach(function(o) {
+      var group = JSON.stringify(propsArr.map(function(p) { return o[p]; }));
+      groups[group] = groups[group] || [];
+      groups[group].push(o);
+    });
+    return Object.keys(groups).map(function(group) {
+      return groups[group];
+    });
+  }
+
+  var removeArrayDuplicates = function(arr) {
+    return arr.filter(function(item, pos, self) {
+      return self.indexOf(item) === pos;
+    });
+  }
+
+  // Objects
+
+  var cloneObject = function(o) {
+    var newObject = {};
+    for (var p in o) newObject[p] = o[p];
+    return newObject;
+  }
+
+  var mergeObjects = function(o1, o2) {
+    for (var p in o2) o1[p] = !is.und(o1[p]) ? o1[p] : o2[p];
+    return o1;
+  }
+
+  // Colors
+
+  var hexToRgb = function(hex) {
+    var rgx = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    var hex = hex.replace(rgx, function(m, r, g, b) { return r + r + g + g + b + b; });
+    var rgb = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    var r = parseInt(rgb[1], 16);
+    var g = parseInt(rgb[2], 16);
+    var b = parseInt(rgb[3], 16);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  var hslToRgb = function(hsl) {
+    var hsl = /hsl\((\d+),\s*([\d.]+)%,\s*([\d.]+)%\)/g.exec(hsl);
+    var h = parseInt(hsl[1]) / 360;
+    var s = parseInt(hsl[2]) / 100;
+    var l = parseInt(hsl[3]) / 100;
+    var hue2rgb = function(p, q, t) {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1/6) return p + (q - p) * 6 * t;
+      if (t < 1/2) return q;
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    }
+    var r, g, b;
+    if (s == 0) {
+      r = g = b = l;
+    } else {
+      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      var p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1/3);
+      g = hue2rgb(p, q, h);
+      b = hue2rgb(p, q, h - 1/3);
+    }
+    return 'rgb(' + r * 255 + ',' + g * 255 + ',' + b * 255 + ')';
+  }
+
+  var colorToRgb = function(val) {
+    if (is.rgb(val)) return val;
+    if (is.hex(val)) return hexToRgb(val);
+    if (is.hsl(val)) return hslToRgb(val);
+  }
+
+  // Units
+
+  var getUnit = function(val) {
+    return /([\+\-]?[0-9|auto\.]+)(%|px|pt|em|rem|in|cm|mm|ex|pc|vw|vh|deg)?/.exec(val)[2];
+  }
+
+  var addDefaultTransformUnit = function(prop, val, intialVal) {
+    if (getUnit(val)) return val;
+    if (prop.indexOf('translate') > -1) return getUnit(intialVal) ? val + getUnit(intialVal) : val + 'px';
+    if (prop.indexOf('rotate') > -1 || prop.indexOf('skew') > -1) return val + 'deg';
+    return val;
+  }
+
+  // Values
+
+  var getCSSValue = function(el, prop) {
+    // First check if prop is a valid CSS property
+    if (prop in el.style) {
+      // Then return the property value or fallback to '0' when getPropertyValue fails
+      return getComputedStyle(el).getPropertyValue(stringToHyphens(prop)) || '0';
+    }
+  }
+
+  var getTransformValue = function(el, prop) {
+    var defaultVal = prop.indexOf('scale') > -1 ? 1 : 0;
+    var str = el.style.transform;
+    if (!str) return defaultVal;
+    var rgx = /(\w+)\((.+?)\)/g;
+    var match = [];
+    var props = [];
+    var values = [];
+    while (match = rgx.exec(str)) {
+      props.push(match[1]);
+      values.push(match[2]);
+    }
+    var val = values.filter(function(f, i) { return props[i] === prop; });
+    return val.length ? val[0] : defaultVal;
+  }
+
+  var getAnimationType = function(el, prop) {
+    if ( is.dom(el) && arrayContains(validTransforms, prop)) return 'transform';
+    if ( is.dom(el) && (el.getAttribute(prop) || (is.svg(el) && el[prop]))) return 'attribute';
+    if ( is.dom(el) && (prop !== 'transform' && getCSSValue(el, prop))) return 'css';
+    if (!is.nul(el[prop]) && !is.und(el[prop])) return 'object';
+  }
+
+  var getInitialTargetValue = function(target, prop) {
+    switch (getAnimationType(target, prop)) {
+      case 'transform': return getTransformValue(target, prop);
+      case 'css': return getCSSValue(target, prop);
+      case 'attribute': return target.getAttribute(prop);
+    }
+    return target[prop] || 0;
+  }
+
+  var getValidValue = function(values, val, originalCSS) {
+    if (is.col(val)) return colorToRgb(val);
+    if (getUnit(val)) return val;
+    var unit = getUnit(values.to) ? getUnit(values.to) : getUnit(values.from);
+    if (!unit && originalCSS) unit = getUnit(originalCSS);
+    return unit ? val + unit : val;
+  }
+
+  var decomposeValue = function(val) {
+    var rgx = /-?\d*\.?\d+/g;
+    return {
+      original: val,
+      numbers: numberToString(val).match(rgx) ? numberToString(val).match(rgx).map(Number) : [0],
+      strings: numberToString(val).split(rgx)
+    }
+  }
+
+  var recomposeValue = function(numbers, strings, initialStrings) {
+    return strings.reduce(function(a, b, i) {
+      var b = (b ? b : initialStrings[i - 1]);
+      return a + numbers[i - 1] + b;
+    });
+  }
+
+  // Animatables
+
+  var getAnimatables = function(targets) {
+    var targets = targets ? (flattenArray(is.arr(targets) ? targets.map(toArray) : toArray(targets))) : [];
+    return targets.map(function(t, i) {
+      return { target: t, id: i };
+    });
+  }
+
+  // Properties
+
+  var getProperties = function(params, settings) {
+    var props = [];
+    for (var p in params) {
+      if (!defaultSettings.hasOwnProperty(p) && p !== 'targets') {
+        var prop = is.obj(params[p]) ? cloneObject(params[p]) : {value: params[p]};
+        prop.name = p;
+        props.push(mergeObjects(prop, settings));
+      }
+    }
+    return props;
+  }
+
+  var getPropertiesValues = function(target, prop, value, i) {
+    var values = toArray( is.fnc(value) ? value(target, i) : value);
+    return {
+      from: (values.length > 1) ? values[0] : getInitialTargetValue(target, prop),
+      to: (values.length > 1) ? values[1] : values[0]
+    }
+  }
+
+  // Tweens
+
+  var getTweenValues = function(prop, values, type, target) {
+    var valid = {};
+    if (type === 'transform') {
+      valid.from = prop + '(' + addDefaultTransformUnit(prop, values.from, values.to) + ')';
+      valid.to = prop + '(' + addDefaultTransformUnit(prop, values.to) + ')';
+    } else {
+      var originalCSS = (type === 'css') ? getCSSValue(target, prop) : undefined;
+      valid.from = getValidValue(values, values.from, originalCSS);
+      valid.to = getValidValue(values, values.to, originalCSS);
+    }
+    return { from: decomposeValue(valid.from), to: decomposeValue(valid.to) };
+  }
+
+  var getTweensProps = function(animatables, props) {
+    var tweensProps = [];
+    animatables.forEach(function(animatable, i) {
+      var target = animatable.target;
+      return props.forEach(function(prop) {
+        var animType = getAnimationType(target, prop.name);
+        if (animType) {
+          var values = getPropertiesValues(target, prop.name, prop.value, i);
+          var tween = cloneObject(prop);
+          tween.animatables = animatable;
+          tween.type = animType;
+          tween.from = getTweenValues(prop.name, values, tween.type, target).from;
+          tween.to = getTweenValues(prop.name, values, tween.type, target).to;
+          tween.round = (is.col(values.from) || tween.round) ? 1 : 0;
+          tween.delay = (is.fnc(tween.delay) ? tween.delay(target, i, animatables.length) : tween.delay) / animation.speed;
+          tween.duration = (is.fnc(tween.duration) ? tween.duration(target, i, animatables.length) : tween.duration) / animation.speed;
+          tweensProps.push(tween);
+        }
+      });
+    });
+    return tweensProps;
+  }
+
+  var getTweens = function(animatables, props) {
+    var tweensProps = getTweensProps(animatables, props);
+    var splittedProps = groupArrayByProps(tweensProps, ['name', 'from', 'to', 'delay', 'duration']);
+    return splittedProps.map(function(tweenProps) {
+      var tween = cloneObject(tweenProps[0]);
+      tween.animatables = tweenProps.map(function(p) { return p.animatables });
+      tween.totalDuration = tween.delay + tween.duration;
+      return tween;
+    });
+  }
+
+  var reverseTweens = function(anim, delays) {
+    anim.tweens.forEach(function(tween) {
+      var toVal = tween.to;
+      var fromVal = tween.from;
+      var delayVal = anim.duration - (tween.delay + tween.duration);
+      tween.from = toVal;
+      tween.to = fromVal;
+      if (delays) tween.delay = delayVal;
+    });
+    anim.reversed = anim.reversed ? false : true;
+  }
+
+  var getTweensDuration = function(tweens) {
+    return Math.max.apply(Math, tweens.map(function(tween){ return tween.totalDuration; }));
+  }
+
+  var getTweensDelay = function(tweens) {
+    return Math.min.apply(Math, tweens.map(function(tween){ return tween.delay; }));
+  }
+
+  // will-change
+
+  var getWillChange = function(anim) {
+    var props = [];
+    var els = [];
+    anim.tweens.forEach(function(tween) {
+      if (tween.type === 'css' || tween.type === 'transform' ) {
+        props.push(tween.type === 'css' ? stringToHyphens(tween.name) : 'transform');
+        tween.animatables.forEach(function(animatable) { els.push(animatable.target); });
+      }
+    });
+    return {
+      properties: removeArrayDuplicates(props).join(', '),
+      elements: removeArrayDuplicates(els)
+    }
+  }
+
+  var setWillChange = function(anim) {
+    var willChange = getWillChange(anim);
+    willChange.elements.forEach(function(element) {
+      element.style.willChange = willChange.properties;
+    });
+  }
+
+  var removeWillChange = function(anim) {
+    var willChange = getWillChange(anim);
+    willChange.elements.forEach(function(element) {
+      element.style.removeProperty('will-change');
+    });
+  }
+
+  /* Svg path */
+
+  var getPathProps = function(path) {
+    var el = is.str(path) ? selectString(path)[0] : path;
+    return {
+      path: el,
+      value: el.getTotalLength()
+    }
+  }
+
+  var snapProgressToPath = function(tween, progress) {
+    var pathEl = tween.path;
+    var pathProgress = tween.value * progress;
+    var point = function(offset) {
+      var o = offset || 0;
+      var p = progress > 1 ? tween.value + o : pathProgress + o;
+      return pathEl.getPointAtLength(p);
+    }
+    var p = point();
+    var p0 = point(-1);
+    var p1 = point(+1);
+    switch (tween.name) {
+      case 'translateX': return p.x;
+      case 'translateY': return p.y;
+      case 'rotate': return Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180 / Math.PI;
+    }
+  }
+
+  // Progress
+
+  var getTweenProgress = function(tween, time) {
+    var elapsed = Math.min(Math.max(time - tween.delay, 0), tween.duration);
+    var percent = elapsed / tween.duration;
+    var progress = tween.to.numbers.map(function(number, p) {
+      var start = tween.from.numbers[p];
+      var eased = easings[tween.easing](percent, tween.elasticity);
+      var val = tween.path ? snapProgressToPath(tween, eased) : start + eased * (number - start);
+      val = tween.round ? Math.round(val * tween.round) / tween.round : val;
+      return val;
+    });
+    return recomposeValue(progress, tween.to.strings, tween.from.strings);
+  }
+
+  var setAnimationProgress = function(anim, time) {
+    var transforms;
+    anim.currentTime = time;
+    anim.progress = (time / anim.duration) * 100;
+    for (var t = 0; t < anim.tweens.length; t++) {
+      var tween = anim.tweens[t];
+      tween.currentValue = getTweenProgress(tween, time);
+      var progress = tween.currentValue;
+      for (var a = 0; a < tween.animatables.length; a++) {
+        var animatable = tween.animatables[a];
+        var id = animatable.id;
+        var target = animatable.target;
+        var name = tween.name;
+        switch (tween.type) {
+          case 'css': target.style[name] = progress; break;
+          case 'attribute': target.setAttribute(name, progress); break;
+          case 'object': target[name] = progress; break;
+          case 'transform':
+          if (!transforms) transforms = {};
+          if (!transforms[id]) transforms[id] = [];
+          transforms[id].push(progress);
+          break;
+        }
+      }
+    }
+    if (transforms) {
+      if (!transform) transform = (getCSSValue(document.body, transformStr) ? '' : '-webkit-') + transformStr;
+      for (var t in transforms) {
+        anim.animatables[t].target.style[transform] = transforms[t].join(' ');
+      }
+    }
+  }
+
+  // Animation
+
+  var createAnimation = function(params) {
+    var anim = {};
+    anim.animatables = getAnimatables(params.targets);
+    anim.settings = mergeObjects(params, defaultSettings);
+    anim.properties = getProperties(params, anim.settings);
+    anim.tweens = getTweens(anim.animatables, anim.properties);
+    anim.duration = anim.tweens.length ? getTweensDuration(anim.tweens) : params.duration;
+    anim.delay = anim.tweens.length ? getTweensDelay(anim.tweens) : params.delay;
+    anim.currentTime = 0;
+    anim.progress = 0;
+    anim.ended = false;
+    return anim;
+  }
+
+  // Public
+
+  var animations = [];
+  var raf = 0;
+
+  var engine = (function() {
+    var play = function() { raf = requestAnimationFrame(step); };
+    var step = function(t) {
+      if (animations.length) {
+        for (var i = 0; i < animations.length; i++) animations[i].tick(t);
+        play();
+      } else {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    }
+    return play;
+  })();
+
+  var animation = function(params) {
+
+    var anim = createAnimation(params);
+    var time = {};
+
+    anim.tick = function(now) {
+      anim.ended = false;
+      if (!time.start) time.start = now;
+      time.current = Math.min(Math.max(time.last + now - time.start, 0), anim.duration);
+      setAnimationProgress(anim, time.current);
+      var s = anim.settings;
+      if (time.current >= anim.delay) {
+        if (s.begin) s.begin(anim); s.begin = undefined;
+        if (s.update) s.update(anim);
+      }
+      if (time.current >= anim.duration) {
+        if (s.loop) {
+          time.start = now;
+          if (s.direction === 'alternate') reverseTweens(anim, true);
+          if (is.num(s.loop)) s.loop--;
+        } else {
+          anim.ended = true;
+          anim.pause();
+          if (s.complete) s.complete(anim);
+        }
+        time.last = 0;
+      }
+    }
+
+    anim.seek = function(progress) {
+      setAnimationProgress(anim, (progress / 100) * anim.duration);
+    }
+
+    anim.pause = function() {
+      removeWillChange(anim);
+      var i = animations.indexOf(anim);
+      if (i > -1) animations.splice(i, 1);
+    }
+
+    anim.play = function(params) {
+      anim.pause();
+      if (params) anim = mergeObjects(createAnimation(mergeObjects(params, anim.settings)), anim);
+      time.start = 0;
+      time.last = anim.ended ? 0 : anim.currentTime;
+      var s = anim.settings;
+      if (s.direction === 'reverse') reverseTweens(anim);
+      if (s.direction === 'alternate' && !s.loop) s.loop = 1;
+      setWillChange(anim);
+      animations.push(anim);
+      if (!raf) engine();
+    }
+
+    anim.restart = function() {
+      if (anim.reversed) reverseTweens(anim);
+      anim.pause();
+      anim.seek(0);
+      anim.play();
+    }
+
+    if (anim.settings.autoplay) anim.play();
+
+    return anim;
+
+  }
+
+  // Remove one or multiple targets from all active animations.
+
+  var remove = function(elements) {
+    var targets = flattenArray(is.arr(elements) ? elements.map(toArray) : toArray(elements));
+    for (var i = animations.length-1; i >= 0; i--) {
+      var animation = animations[i];
+      var tweens = animation.tweens;
+      for (var t = tweens.length-1; t >= 0; t--) {
+        var animatables = tweens[t].animatables;
+        for (var a = animatables.length-1; a >= 0; a--) {
+          if (arrayContains(targets, animatables[a].target)) {
+            animatables.splice(a, 1);
+            if (!animatables.length) tweens.splice(t, 1);
+            if (!tweens.length) animation.pause();
+          }
+        }
+      }
+    }
+  }
+
+  animation.version = version;
+  animation.speed = 1;
+  animation.list = animations;
+  animation.remove = remove;
+  animation.easings = easings;
+  animation.getValue = getInitialTargetValue;
+  animation.path = getPathProps;
+  animation.random = random;
+
+  return animation;
+
+}));
+
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+exports.store = undefined;
+
+var _vue = __webpack_require__(0);
+
+var _vue2 = _interopRequireDefault(_vue);
+
+var _vuex = __webpack_require__(4);
+
+var _vuex2 = _interopRequireDefault(_vuex);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+_vue2.default.use(_vuex2.default);
+
+var store = exports.store = new _vuex2.default.Store({
+	state: {
+		descriptors: ["A word to describe your average day", "A bad place to wake up", "Something you do while you're alone", "A word to describe the death of a pet", "Name of your valentine or someone you would like to have as a valentine", "Your name", "Favorite programming language", "Noteworthy author", "Someone besides your valentine you would want to have sex with", "A place you would take a date", "A good time for a date"],
+		answers: [],
+		isReady: false,
+		isMale: true
+	},
+	getters: {
+		count: function count(state) {
+			return state.descriptors.length;
+		},
+		descriptors: function descriptors(state) {
+			return state.descriptors;
+		},
+		answers: function answers(state) {
+			return state.answers;
+		},
+		isReady: function isReady(state) {
+			return state.isReady;
+		},
+		isMale: function isMale(state) {
+			return state.isMale;
+		}
+	},
+	mutations: {
+		addWord: function addWord(state, word) {
+			state.answers.push(word);
+		},
+		removeDescriptor: function removeDescriptor(state) {
+			state.descriptors.splice(0, 1);
+		},
+		show: function show(state) {
+			state.isReady = true;
+		},
+		isMale: function isMale(state, bool) {
+			state.isMale = bool;
+		}
+	}
+});
+
+/***/ }),
+/* 3 */
 /***/ (function(module, exports) {
 
 // shim for using process in browser
@@ -8829,203 +9541,7 @@ process.umask = function() { return 0; };
 
 
 /***/ }),
-/* 2 */
-/***/ (function(module, exports) {
-
-var g;
-
-// This works in non-strict mode
-g = (function() {
-	return this;
-})();
-
-try {
-	// This works if eval is allowed (see CSP)
-	g = g || Function("return this")() || (1,eval)("this");
-} catch(e) {
-	// This works if the window reference is available
-	if(typeof window === "object")
-		g = window;
-}
-
-// g can still be undefined, but nothing to do about it...
-// We return undefined, instead of nothing here, so it's
-// easier to handle this case. if(!global) { ...}
-
-module.exports = g;
-
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-var _vue = __webpack_require__(0);
-
-var _vue2 = _interopRequireDefault(_vue);
-
-var _store = __webpack_require__(4);
-
-var _animejs = __webpack_require__(7);
-
-var _animejs2 = _interopRequireDefault(_animejs);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-// make sure page is loaded before scripts are ran
-
-window.onload = function () {
-
-				_vue2.default.component('gender-input', {
-								template: '\n\t\t\t<div id="gender-selector">\n\t\t\t\t<input checked name="gender-select" type="radio" id="male" v-on:click="isMale(true)">\n\t\t\t\t<label for="male">Male</label>\n\t\t\t\t<input name="gender-select" type="radio" id="female" v-on:click="isMale(false)">\n\t\t\t\t<label for="female">Female</label>\n\t\t\t</div>\n\t\t',
-								methods: {
-												isMale: function isMale(bool) {
-																this.$store.commit('isMale', bool);
-												}
-								}
-				});
-
-				_vue2.default.component('madlib', {
-								template: '\n\t\t\t<div v-if="isReady">\n\t\t\t\t<div id="madlib">\n\t\t\t\t\t<p>\n\t\t\t\t\tIt was a <strong>{{ answers[0] }}</strong>\n\t\t\t\t\tTuesday, and I knew it was Valentine\'s day before I\n\t\t\t\t\tleft <strong>{{ answers[1] }}</strong>.\n\t\t\t\t\tAlone on Valentine\'s day again with nothing better to do\n\t\t\t\t\tthan work and <strong>{{ answers[2] }}</strong>.\n\t\t\t\t\tOn the bright side, it was the last day of my\n\t\t\t\t\tTopCoder challenge, and all the other registrants were seemingly too busy\n\t\t\t\t\tplanning their <strong>{{ answers[3] }}</strong>\n\t\t\t\t\tValentine\'s Day to submit their work.\n\t\t\t\t\tWhen I logged onto my computer to finalize my code for the challenge, I found a\n\t\t\t\t\tbitbucket link in my\n\t\t\t\t\temail sent by <strong>{{ answers[4] }}</strong>, a friend of mine.\n\t\t\t\t\tThe email body reada,</p>\n\t\t\t\t\t\n\t\t\t\t\t<p class="email"> \u201CHiya <strong>{{ answers[5] }}</strong>,\n\t\t\t\t\tI have to get to get this\n\t\t\t\t\tTopCoder challenge done by the end of the day. Was hoping you could check my\n\t\t\t\t\tcode? (\u3065\uFF61\u25D5\u203F\u203F\u25D5\uFF61)\u3065, From <strong>{{ answers[4] }}</strong>\u201D</p>\n\t\t\t\t\t\n\t\t\t\t\t<p>It was no trouble for  me, and I couldn\u2019t miss the opportunity to help out\n\t\t\t\t\ta friend like <strong>{{ answers[4] }}</strong>.\n\t\t\t\t\tAs I read, I realized the both of us\n\t\t\t\t\twere writing for the same challenge, and {{ gender ? \'his\':\'her\'}}\n\t\t\t\t\t<strong>{{ answers[6]}}</strong> was nothing sort of\n\t\t\t\t\tbrilliant. Line after line was like reading from\n\t\t\t\t\t<strong>{{ answers[7] }}</strong>.\n\t\t\t\t\t{{gender?\'His\':\'Her\'}} code was better\n\t\t\t\t\tthan mine and if {{ gender? \'he\':\'she\' }} were to submit,\n\t\t\t\t\t{{ gender?\'he\':\'she\'}} would most certainly beat me,\n\t\t\t\t\tyet there was nothing more attractive than the brain, and\n\t\t\t\t\t{{gender?\'his\':"her"}} brain was as\n\t\t\t\t\tsexy as <strong>{{ answers[8] }}</strong> stripping right before my eyes.\n\t\t\t\t\tI didn\u2019t care about the challenge\n\t\t\t\t\tanymore. I started my reply. It said: \u201CYour code looks really good! I think you\n\t\t\t\t\thave a good shot at winning. But also, <strong>{{ answers[4] }}</strong>,\n\t\t\t\t\tI don\u2019t know if you have plans\n\t\t\t\t\ttonight, but I was wondering if maybe you would like to go to\n\t\t\t\t\t<strong>{{ answers[9]}}</strong>\u201D\n\t\t\t\t\tMy nerves\n\t\t\t\t\twere shot, but at least when {{gender ? "he":"she" }}\n\t\t\t\t\tdenied me, I couldn\u2019t feel sorry for\n\t\t\t\t\tmyself because at least I took a chance. In minutes a reply came. It said.\n\t\t\t\t\t\u201CI love <strong>{{ answers[9] }}</strong>! Want to get\n\t\t\t\t\ttogether around <strong>{{ answers[10]}}</strong>?\u201D And like that, I shut\n\t\t\t\t\tdown my computer and forgot about the challenge. I felt too busy: I had\n\t\t\t\t\tto plan for Valentine\u2019s Day.\n\t\t\t\t\t</p>\n\t\t\t\t</div>\n\t\t\t\t<button v-on:click="reset()" type="button">Reset</button>\n\t\t\t</div>\n\t\t',
-								computed: {
-												isReady: function isReady() {
-																return this.$store.getters.isReady;
-												},
-												answers: function answers() {
-																return this.$store.getters.answers;
-												},
-												gender: function gender() {
-																return this.$store.getters.isMale;
-												}
-								},
-								methods: {
-												reset: function reset() {
-																location.reload();
-												}
-								}
-				});
-
-				_vue2.default.component('description', {
-								template: '<p>{{ descriptors[0] }}</p>',
-								computed: {
-												descriptors: function descriptors() {
-																return this.$store.getters.descriptors;
-												}
-								}
-				});
-
-				_vue2.default.component('scanner', {
-								template: '\
-			<input\
-				v-if="count > 0"\
-				ref="input"\
-				class="textfield"\
-				placeholder="type here"\
-				v-on:keyup.enter="submitWord($event)" />',
-								methods: {
-												submitWord: function submitWord(event) {
-																this.$store.commit('addWord', event.target.value);
-																this.$store.commit('removeDescriptor');
-
-																event.target.value = "";
-												}
-								},
-								computed: {
-												count: function count() {
-																return this.$store.getters.count;
-												}
-								}
-				});
-
-				_vue2.default.component('counter', {
-								template: '<p id="counter">{{ count }} words left.</p>',
-								computed: {
-												count: function count() {
-																var storeCount = this.$store.getters.count;
-
-																if (storeCount === 0) {
-																				this.$store.commit('show');
-																}
-
-																return storeCount;
-												}
-								}
-				});
-
-				new _vue2.default({
-								el: '#app',
-								store: _store.store
-				});
-};
-
-/***/ }),
 /* 4 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-	value: true
-});
-exports.store = undefined;
-
-var _vue = __webpack_require__(0);
-
-var _vue2 = _interopRequireDefault(_vue);
-
-var _vuex = __webpack_require__(5);
-
-var _vuex2 = _interopRequireDefault(_vuex);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-_vue2.default.use(_vuex2.default);
-
-var store = exports.store = new _vuex2.default.Store({
-	state: {
-		descriptors: ["A word to describe your average day", "A bad place to wake up", "Something you do while you're alone", "A word to describe the death of pet", "Name of your valentine or someone you would like to have as a valentine", "Your name", "Favorite programming language", "Noteworthy author", "Someone besides your valentine you would want to have sex with", "A place you would take a date", "A good time for a date"],
-		answers: [],
-		isReady: false,
-		isMale: true
-	},
-	getters: {
-		count: function count(state) {
-			return state.descriptors.length;
-		},
-		descriptors: function descriptors(state) {
-			return state.descriptors;
-		},
-		answers: function answers(state) {
-			return state.answers;
-		},
-		isReady: function isReady(state) {
-			return state.isReady;
-		},
-		isMale: function isMale(state) {
-			return state.isMale;
-		}
-	},
-	mutations: {
-		addWord: function addWord(state, word) {
-			state.answers.push(word);
-		},
-		removeDescriptor: function removeDescriptor(state) {
-			state.descriptors.splice(0, 1);
-		},
-		show: function show(state) {
-			state.isReady = true;
-		},
-		isMale: function isMale(state, bool) {
-			state.isMale = bool;
-		}
-	}
-});
-
-/***/ }),
-/* 5 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /**
@@ -9836,653 +10352,136 @@ return index;
 
 
 /***/ }),
-/* 6 */,
-/* 7 */
+/* 5 */
+/***/ (function(module, exports) {
+
+var g;
+
+// This works in non-strict mode
+g = (function() {
+	return this;
+})();
+
+try {
+	// This works if eval is allowed (see CSP)
+	g = g || Function("return this")() || (1,eval)("this");
+} catch(e) {
+	// This works if the window reference is available
+	if(typeof window === "object")
+		g = window;
+}
+
+// g can still be undefined, but nothing to do about it...
+// We return undefined, instead of nothing here, so it's
+// easier to handle this case. if(!global) { ...}
+
+module.exports = g;
+
+
+/***/ }),
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
-var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*
- * Anime v1.1.3
- * http://anime-js.com
- * JavaScript animation engine
- * Copyright (c) 2016 Julian Garnier
- * http://juliangarnier.com
- * Released under the MIT license
- */
-
-(function (root, factory) {
-  if (true) {
-    // AMD. Register as an anonymous module.
-    !(__WEBPACK_AMD_DEFINE_ARRAY__ = [], __WEBPACK_AMD_DEFINE_FACTORY__ = (factory),
-				__WEBPACK_AMD_DEFINE_RESULT__ = (typeof __WEBPACK_AMD_DEFINE_FACTORY__ === 'function' ?
-				(__WEBPACK_AMD_DEFINE_FACTORY__.apply(exports, __WEBPACK_AMD_DEFINE_ARRAY__)) : __WEBPACK_AMD_DEFINE_FACTORY__),
-				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-  } else if (typeof module === 'object' && module.exports) {
-    // Node. Does not work with strict CommonJS, but
-    // only CommonJS-like environments that support module.exports,
-    // like Node.
-    module.exports = factory();
-  } else {
-    // Browser globals (root is window)
-    root.anime = factory();
-  }
-}(this, function () {
-
-  var version = '1.1.3';
-
-  // Defaults
-
-  var defaultSettings = {
-    duration: 1000,
-    delay: 0,
-    loop: false,
-    autoplay: true,
-    direction: 'normal',
-    easing: 'easeOutElastic',
-    elasticity: 400,
-    round: false,
-    begin: undefined,
-    update: undefined,
-    complete: undefined
-  }
-
-  // Transforms
-
-  var validTransforms = ['translateX', 'translateY', 'translateZ', 'rotate', 'rotateX', 'rotateY', 'rotateZ', 'scale', 'scaleX', 'scaleY', 'scaleZ', 'skewX', 'skewY'];
-  var transform, transformStr = 'transform';
-
-  // Utils
-
-  var is = {
-    arr: function(a) { return Array.isArray(a) },
-    obj: function(a) { return Object.prototype.toString.call(a).indexOf('Object') > -1 },
-    svg: function(a) { return a instanceof SVGElement },
-    dom: function(a) { return a.nodeType || is.svg(a) },
-    num: function(a) { return !isNaN(parseInt(a)) },
-    str: function(a) { return typeof a === 'string' },
-    fnc: function(a) { return typeof a === 'function' },
-    und: function(a) { return typeof a === 'undefined' },
-    nul: function(a) { return typeof a === 'null' },
-    hex: function(a) { return /(^#[0-9A-F]{6}$)|(^#[0-9A-F]{3}$)/i.test(a) },
-    rgb: function(a) { return /^rgb/.test(a) },
-    hsl: function(a) { return /^hsl/.test(a) },
-    col: function(a) { return (is.hex(a) || is.rgb(a) || is.hsl(a)) }
-  }
-
-  // Easings functions adapted from http://jqueryui.com/
-
-  var easings = (function() {
-    var eases = {};
-    var names = ['Quad', 'Cubic', 'Quart', 'Quint', 'Expo'];
-    var functions = {
-      Sine: function(t) { return 1 + Math.sin(Math.PI / 2 * t - Math.PI / 2); },
-      Circ: function(t) { return 1 - Math.sqrt( 1 - t * t ); },
-      Elastic: function(t, m) {
-        if( t === 0 || t === 1 ) return t;
-        var p = (1 - Math.min(m, 998) / 1000), st = t / 1, st1 = st - 1, s = p / ( 2 * Math.PI ) * Math.asin( 1 );
-        return -( Math.pow( 2, 10 * st1 ) * Math.sin( ( st1 - s ) * ( 2 * Math.PI ) / p ) );
-      },
-      Back: function(t) { return t * t * ( 3 * t - 2 ); },
-      Bounce: function(t) {
-        var pow2, bounce = 4;
-        while ( t < ( ( pow2 = Math.pow( 2, --bounce ) ) - 1 ) / 11 ) {}
-        return 1 / Math.pow( 4, 3 - bounce ) - 7.5625 * Math.pow( ( pow2 * 3 - 2 ) / 22 - t, 2 );
-      }
-    }
-    names.forEach(function(name, i) {
-      functions[name] = function(t) {
-        return Math.pow( t, i + 2 );
-      }
-    });
-    Object.keys(functions).forEach(function(name) {
-      var easeIn = functions[name];
-      eases['easeIn' + name] = easeIn;
-      eases['easeOut' + name] = function(t, m) { return 1 - easeIn(1 - t, m); };
-      eases['easeInOut' + name] = function(t, m) { return t < 0.5 ? easeIn(t * 2, m) / 2 : 1 - easeIn(t * -2 + 2, m) / 2; };
-      eases['easeOutIn' + name] = function(t, m) { return t < 0.5 ? (1 - easeIn(1 - 2 * t, m)) / 2 : (easeIn(t * 2 - 1, m) + 1) / 2; };
-    });
-    eases.linear = function(t) { return t; };
-    return eases;
-  })();
-
-  // Strings
-
-  var numberToString = function(val) {
-    return (is.str(val)) ? val : val + '';
-  }
-
-  var stringToHyphens = function(str) {
-    return str.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
-  }
-
-  var selectString = function(str) {
-    if (is.col(str)) return false;
-    try {
-      var nodes = document.querySelectorAll(str);
-      return nodes;
-    } catch(e) {
-      return false;
-    }
-  }
-
-  // Numbers
-
-  var random = function(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
-
-  // Arrays
-
-  var flattenArray = function(arr) {
-    return arr.reduce(function(a, b) {
-      return a.concat(is.arr(b) ? flattenArray(b) : b);
-    }, []);
-  }
-
-  var toArray = function(o) {
-    if (is.arr(o)) return o;
-    if (is.str(o)) o = selectString(o) || o;
-    if (o instanceof NodeList || o instanceof HTMLCollection) return [].slice.call(o);
-    return [o];
-  }
-
-  var arrayContains = function(arr, val) {
-    return arr.some(function(a) { return a === val; });
-  }
-
-  var groupArrayByProps = function(arr, propsArr) {
-    var groups = {};
-    arr.forEach(function(o) {
-      var group = JSON.stringify(propsArr.map(function(p) { return o[p]; }));
-      groups[group] = groups[group] || [];
-      groups[group].push(o);
-    });
-    return Object.keys(groups).map(function(group) {
-      return groups[group];
-    });
-  }
-
-  var removeArrayDuplicates = function(arr) {
-    return arr.filter(function(item, pos, self) {
-      return self.indexOf(item) === pos;
-    });
-  }
-
-  // Objects
-
-  var cloneObject = function(o) {
-    var newObject = {};
-    for (var p in o) newObject[p] = o[p];
-    return newObject;
-  }
-
-  var mergeObjects = function(o1, o2) {
-    for (var p in o2) o1[p] = !is.und(o1[p]) ? o1[p] : o2[p];
-    return o1;
-  }
-
-  // Colors
-
-  var hexToRgb = function(hex) {
-    var rgx = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-    var hex = hex.replace(rgx, function(m, r, g, b) { return r + r + g + g + b + b; });
-    var rgb = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    var r = parseInt(rgb[1], 16);
-    var g = parseInt(rgb[2], 16);
-    var b = parseInt(rgb[3], 16);
-    return 'rgb(' + r + ',' + g + ',' + b + ')';
-  }
-
-  var hslToRgb = function(hsl) {
-    var hsl = /hsl\((\d+),\s*([\d.]+)%,\s*([\d.]+)%\)/g.exec(hsl);
-    var h = parseInt(hsl[1]) / 360;
-    var s = parseInt(hsl[2]) / 100;
-    var l = parseInt(hsl[3]) / 100;
-    var hue2rgb = function(p, q, t) {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1/6) return p + (q - p) * 6 * t;
-      if (t < 1/2) return q;
-      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-      return p;
-    }
-    var r, g, b;
-    if (s == 0) {
-      r = g = b = l;
-    } else {
-      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-      var p = 2 * l - q;
-      r = hue2rgb(p, q, h + 1/3);
-      g = hue2rgb(p, q, h);
-      b = hue2rgb(p, q, h - 1/3);
-    }
-    return 'rgb(' + r * 255 + ',' + g * 255 + ',' + b * 255 + ')';
-  }
-
-  var colorToRgb = function(val) {
-    if (is.rgb(val)) return val;
-    if (is.hex(val)) return hexToRgb(val);
-    if (is.hsl(val)) return hslToRgb(val);
-  }
-
-  // Units
-
-  var getUnit = function(val) {
-    return /([\+\-]?[0-9|auto\.]+)(%|px|pt|em|rem|in|cm|mm|ex|pc|vw|vh|deg)?/.exec(val)[2];
-  }
-
-  var addDefaultTransformUnit = function(prop, val, intialVal) {
-    if (getUnit(val)) return val;
-    if (prop.indexOf('translate') > -1) return getUnit(intialVal) ? val + getUnit(intialVal) : val + 'px';
-    if (prop.indexOf('rotate') > -1 || prop.indexOf('skew') > -1) return val + 'deg';
-    return val;
-  }
-
-  // Values
-
-  var getCSSValue = function(el, prop) {
-    // First check if prop is a valid CSS property
-    if (prop in el.style) {
-      // Then return the property value or fallback to '0' when getPropertyValue fails
-      return getComputedStyle(el).getPropertyValue(stringToHyphens(prop)) || '0';
-    }
-  }
-
-  var getTransformValue = function(el, prop) {
-    var defaultVal = prop.indexOf('scale') > -1 ? 1 : 0;
-    var str = el.style.transform;
-    if (!str) return defaultVal;
-    var rgx = /(\w+)\((.+?)\)/g;
-    var match = [];
-    var props = [];
-    var values = [];
-    while (match = rgx.exec(str)) {
-      props.push(match[1]);
-      values.push(match[2]);
-    }
-    var val = values.filter(function(f, i) { return props[i] === prop; });
-    return val.length ? val[0] : defaultVal;
-  }
-
-  var getAnimationType = function(el, prop) {
-    if ( is.dom(el) && arrayContains(validTransforms, prop)) return 'transform';
-    if ( is.dom(el) && (el.getAttribute(prop) || (is.svg(el) && el[prop]))) return 'attribute';
-    if ( is.dom(el) && (prop !== 'transform' && getCSSValue(el, prop))) return 'css';
-    if (!is.nul(el[prop]) && !is.und(el[prop])) return 'object';
-  }
-
-  var getInitialTargetValue = function(target, prop) {
-    switch (getAnimationType(target, prop)) {
-      case 'transform': return getTransformValue(target, prop);
-      case 'css': return getCSSValue(target, prop);
-      case 'attribute': return target.getAttribute(prop);
-    }
-    return target[prop] || 0;
-  }
-
-  var getValidValue = function(values, val, originalCSS) {
-    if (is.col(val)) return colorToRgb(val);
-    if (getUnit(val)) return val;
-    var unit = getUnit(values.to) ? getUnit(values.to) : getUnit(values.from);
-    if (!unit && originalCSS) unit = getUnit(originalCSS);
-    return unit ? val + unit : val;
-  }
-
-  var decomposeValue = function(val) {
-    var rgx = /-?\d*\.?\d+/g;
-    return {
-      original: val,
-      numbers: numberToString(val).match(rgx) ? numberToString(val).match(rgx).map(Number) : [0],
-      strings: numberToString(val).split(rgx)
-    }
-  }
-
-  var recomposeValue = function(numbers, strings, initialStrings) {
-    return strings.reduce(function(a, b, i) {
-      var b = (b ? b : initialStrings[i - 1]);
-      return a + numbers[i - 1] + b;
-    });
-  }
-
-  // Animatables
-
-  var getAnimatables = function(targets) {
-    var targets = targets ? (flattenArray(is.arr(targets) ? targets.map(toArray) : toArray(targets))) : [];
-    return targets.map(function(t, i) {
-      return { target: t, id: i };
-    });
-  }
-
-  // Properties
-
-  var getProperties = function(params, settings) {
-    var props = [];
-    for (var p in params) {
-      if (!defaultSettings.hasOwnProperty(p) && p !== 'targets') {
-        var prop = is.obj(params[p]) ? cloneObject(params[p]) : {value: params[p]};
-        prop.name = p;
-        props.push(mergeObjects(prop, settings));
-      }
-    }
-    return props;
-  }
-
-  var getPropertiesValues = function(target, prop, value, i) {
-    var values = toArray( is.fnc(value) ? value(target, i) : value);
-    return {
-      from: (values.length > 1) ? values[0] : getInitialTargetValue(target, prop),
-      to: (values.length > 1) ? values[1] : values[0]
-    }
-  }
-
-  // Tweens
-
-  var getTweenValues = function(prop, values, type, target) {
-    var valid = {};
-    if (type === 'transform') {
-      valid.from = prop + '(' + addDefaultTransformUnit(prop, values.from, values.to) + ')';
-      valid.to = prop + '(' + addDefaultTransformUnit(prop, values.to) + ')';
-    } else {
-      var originalCSS = (type === 'css') ? getCSSValue(target, prop) : undefined;
-      valid.from = getValidValue(values, values.from, originalCSS);
-      valid.to = getValidValue(values, values.to, originalCSS);
-    }
-    return { from: decomposeValue(valid.from), to: decomposeValue(valid.to) };
-  }
-
-  var getTweensProps = function(animatables, props) {
-    var tweensProps = [];
-    animatables.forEach(function(animatable, i) {
-      var target = animatable.target;
-      return props.forEach(function(prop) {
-        var animType = getAnimationType(target, prop.name);
-        if (animType) {
-          var values = getPropertiesValues(target, prop.name, prop.value, i);
-          var tween = cloneObject(prop);
-          tween.animatables = animatable;
-          tween.type = animType;
-          tween.from = getTweenValues(prop.name, values, tween.type, target).from;
-          tween.to = getTweenValues(prop.name, values, tween.type, target).to;
-          tween.round = (is.col(values.from) || tween.round) ? 1 : 0;
-          tween.delay = (is.fnc(tween.delay) ? tween.delay(target, i, animatables.length) : tween.delay) / animation.speed;
-          tween.duration = (is.fnc(tween.duration) ? tween.duration(target, i, animatables.length) : tween.duration) / animation.speed;
-          tweensProps.push(tween);
-        }
-      });
-    });
-    return tweensProps;
-  }
-
-  var getTweens = function(animatables, props) {
-    var tweensProps = getTweensProps(animatables, props);
-    var splittedProps = groupArrayByProps(tweensProps, ['name', 'from', 'to', 'delay', 'duration']);
-    return splittedProps.map(function(tweenProps) {
-      var tween = cloneObject(tweenProps[0]);
-      tween.animatables = tweenProps.map(function(p) { return p.animatables });
-      tween.totalDuration = tween.delay + tween.duration;
-      return tween;
-    });
-  }
-
-  var reverseTweens = function(anim, delays) {
-    anim.tweens.forEach(function(tween) {
-      var toVal = tween.to;
-      var fromVal = tween.from;
-      var delayVal = anim.duration - (tween.delay + tween.duration);
-      tween.from = toVal;
-      tween.to = fromVal;
-      if (delays) tween.delay = delayVal;
-    });
-    anim.reversed = anim.reversed ? false : true;
-  }
-
-  var getTweensDuration = function(tweens) {
-    return Math.max.apply(Math, tweens.map(function(tween){ return tween.totalDuration; }));
-  }
-
-  var getTweensDelay = function(tweens) {
-    return Math.min.apply(Math, tweens.map(function(tween){ return tween.delay; }));
-  }
-
-  // will-change
-
-  var getWillChange = function(anim) {
-    var props = [];
-    var els = [];
-    anim.tweens.forEach(function(tween) {
-      if (tween.type === 'css' || tween.type === 'transform' ) {
-        props.push(tween.type === 'css' ? stringToHyphens(tween.name) : 'transform');
-        tween.animatables.forEach(function(animatable) { els.push(animatable.target); });
-      }
-    });
-    return {
-      properties: removeArrayDuplicates(props).join(', '),
-      elements: removeArrayDuplicates(els)
-    }
-  }
-
-  var setWillChange = function(anim) {
-    var willChange = getWillChange(anim);
-    willChange.elements.forEach(function(element) {
-      element.style.willChange = willChange.properties;
-    });
-  }
-
-  var removeWillChange = function(anim) {
-    var willChange = getWillChange(anim);
-    willChange.elements.forEach(function(element) {
-      element.style.removeProperty('will-change');
-    });
-  }
-
-  /* Svg path */
-
-  var getPathProps = function(path) {
-    var el = is.str(path) ? selectString(path)[0] : path;
-    return {
-      path: el,
-      value: el.getTotalLength()
-    }
-  }
-
-  var snapProgressToPath = function(tween, progress) {
-    var pathEl = tween.path;
-    var pathProgress = tween.value * progress;
-    var point = function(offset) {
-      var o = offset || 0;
-      var p = progress > 1 ? tween.value + o : pathProgress + o;
-      return pathEl.getPointAtLength(p);
-    }
-    var p = point();
-    var p0 = point(-1);
-    var p1 = point(+1);
-    switch (tween.name) {
-      case 'translateX': return p.x;
-      case 'translateY': return p.y;
-      case 'rotate': return Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180 / Math.PI;
-    }
-  }
-
-  // Progress
-
-  var getTweenProgress = function(tween, time) {
-    var elapsed = Math.min(Math.max(time - tween.delay, 0), tween.duration);
-    var percent = elapsed / tween.duration;
-    var progress = tween.to.numbers.map(function(number, p) {
-      var start = tween.from.numbers[p];
-      var eased = easings[tween.easing](percent, tween.elasticity);
-      var val = tween.path ? snapProgressToPath(tween, eased) : start + eased * (number - start);
-      val = tween.round ? Math.round(val * tween.round) / tween.round : val;
-      return val;
-    });
-    return recomposeValue(progress, tween.to.strings, tween.from.strings);
-  }
-
-  var setAnimationProgress = function(anim, time) {
-    var transforms;
-    anim.currentTime = time;
-    anim.progress = (time / anim.duration) * 100;
-    for (var t = 0; t < anim.tweens.length; t++) {
-      var tween = anim.tweens[t];
-      tween.currentValue = getTweenProgress(tween, time);
-      var progress = tween.currentValue;
-      for (var a = 0; a < tween.animatables.length; a++) {
-        var animatable = tween.animatables[a];
-        var id = animatable.id;
-        var target = animatable.target;
-        var name = tween.name;
-        switch (tween.type) {
-          case 'css': target.style[name] = progress; break;
-          case 'attribute': target.setAttribute(name, progress); break;
-          case 'object': target[name] = progress; break;
-          case 'transform':
-          if (!transforms) transforms = {};
-          if (!transforms[id]) transforms[id] = [];
-          transforms[id].push(progress);
-          break;
-        }
-      }
-    }
-    if (transforms) {
-      if (!transform) transform = (getCSSValue(document.body, transformStr) ? '' : '-webkit-') + transformStr;
-      for (var t in transforms) {
-        anim.animatables[t].target.style[transform] = transforms[t].join(' ');
-      }
-    }
-  }
-
-  // Animation
-
-  var createAnimation = function(params) {
-    var anim = {};
-    anim.animatables = getAnimatables(params.targets);
-    anim.settings = mergeObjects(params, defaultSettings);
-    anim.properties = getProperties(params, anim.settings);
-    anim.tweens = getTweens(anim.animatables, anim.properties);
-    anim.duration = anim.tweens.length ? getTweensDuration(anim.tweens) : params.duration;
-    anim.delay = anim.tweens.length ? getTweensDelay(anim.tweens) : params.delay;
-    anim.currentTime = 0;
-    anim.progress = 0;
-    anim.ended = false;
-    return anim;
-  }
-
-  // Public
-
-  var animations = [];
-  var raf = 0;
-
-  var engine = (function() {
-    var play = function() { raf = requestAnimationFrame(step); };
-    var step = function(t) {
-      if (animations.length) {
-        for (var i = 0; i < animations.length; i++) animations[i].tick(t);
-        play();
-      } else {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-    }
-    return play;
-  })();
-
-  var animation = function(params) {
-
-    var anim = createAnimation(params);
-    var time = {};
-
-    anim.tick = function(now) {
-      anim.ended = false;
-      if (!time.start) time.start = now;
-      time.current = Math.min(Math.max(time.last + now - time.start, 0), anim.duration);
-      setAnimationProgress(anim, time.current);
-      var s = anim.settings;
-      if (time.current >= anim.delay) {
-        if (s.begin) s.begin(anim); s.begin = undefined;
-        if (s.update) s.update(anim);
-      }
-      if (time.current >= anim.duration) {
-        if (s.loop) {
-          time.start = now;
-          if (s.direction === 'alternate') reverseTweens(anim, true);
-          if (is.num(s.loop)) s.loop--;
-        } else {
-          anim.ended = true;
-          anim.pause();
-          if (s.complete) s.complete(anim);
-        }
-        time.last = 0;
-      }
-    }
-
-    anim.seek = function(progress) {
-      setAnimationProgress(anim, (progress / 100) * anim.duration);
-    }
-
-    anim.pause = function() {
-      removeWillChange(anim);
-      var i = animations.indexOf(anim);
-      if (i > -1) animations.splice(i, 1);
-    }
-
-    anim.play = function(params) {
-      anim.pause();
-      if (params) anim = mergeObjects(createAnimation(mergeObjects(params, anim.settings)), anim);
-      time.start = 0;
-      time.last = anim.ended ? 0 : anim.currentTime;
-      var s = anim.settings;
-      if (s.direction === 'reverse') reverseTweens(anim);
-      if (s.direction === 'alternate' && !s.loop) s.loop = 1;
-      setWillChange(anim);
-      animations.push(anim);
-      if (!raf) engine();
-    }
-
-    anim.restart = function() {
-      if (anim.reversed) reverseTweens(anim);
-      anim.pause();
-      anim.seek(0);
-      anim.play();
-    }
-
-    if (anim.settings.autoplay) anim.play();
-
-    return anim;
-
-  }
-
-  // Remove one or multiple targets from all active animations.
-
-  var remove = function(elements) {
-    var targets = flattenArray(is.arr(elements) ? elements.map(toArray) : toArray(elements));
-    for (var i = animations.length-1; i >= 0; i--) {
-      var animation = animations[i];
-      var tweens = animation.tweens;
-      for (var t = tweens.length-1; t >= 0; t--) {
-        var animatables = tweens[t].animatables;
-        for (var a = animatables.length-1; a >= 0; a--) {
-          if (arrayContains(targets, animatables[a].target)) {
-            animatables.splice(a, 1);
-            if (!animatables.length) tweens.splice(t, 1);
-            if (!tweens.length) animation.pause();
-          }
-        }
-      }
-    }
-  }
-
-  animation.version = version;
-  animation.speed = 1;
-  animation.list = animations;
-  animation.remove = remove;
-  animation.easings = easings;
-  animation.getValue = getInitialTargetValue;
-  animation.path = getPathProps;
-  animation.random = random;
-
-  return animation;
-
-}));
-
+"use strict";
+
+
+var _vue = __webpack_require__(0);
+
+var _vue2 = _interopRequireDefault(_vue);
+
+var _store = __webpack_require__(2);
+
+var _animejs = __webpack_require__(1);
+
+var _animejs2 = _interopRequireDefault(_animejs);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+// make sure page is loaded before scripts are ran
+
+window.onload = function () {
+
+				_vue2.default.component('gender-input', {
+								template: '\n\t\t\t<div id="gender-selector">\n\t\t\t\t<input checked name="gender-select" type="radio" id="male" v-on:click="isMale(true)">\n\t\t\t\t<label for="male">Male</label>\n\t\t\t\t<input name="gender-select" type="radio" id="female" v-on:click="isMale(false)">\n\t\t\t\t<label for="female">Female</label>\n\t\t\t</div>\n\t\t',
+								methods: {
+												isMale: function isMale(bool) {
+																this.$store.commit('isMale', bool);
+												}
+								}
+				});
+
+				_vue2.default.component('madlib', {
+								template: '\n\t\t\t<div v-if="isReady">\n\t\t\t\t<div id="madlib">\n\t\t\t\t\t<p>\n\t\t\t\t\tIt was a <strong>{{ answers[0] }}</strong>\n\t\t\t\t\tTuesday, and I knew it was Valentine\'s day before I\n\t\t\t\t\tleft <strong>{{ answers[1] }}</strong>.\n\t\t\t\t\tAlone on Valentine\'s day again with nothing better to do\n\t\t\t\t\tthan work and <strong>{{ answers[2] }}</strong>.\n\t\t\t\t\tOn the bright side, it was the last day of my\n\t\t\t\t\tTopCoder challenge, and all the other registrants were seemingly too busy\n\t\t\t\t\tplanning their <strong>{{ answers[3] }}</strong>\n\t\t\t\t\tValentine\'s Day to submit their work.\n\t\t\t\t\tWhen I logged onto my computer to finalize my code for the challenge, I found a\n\t\t\t\t\tbitbucket link in my\n\t\t\t\t\temail sent by <strong>{{ answers[4] }}</strong>, a friend of mine.\n\t\t\t\t\tThe email body reada,</p>\n\t\t\t\t\t\n\t\t\t\t\t<p class="email"> \u201CHiya <strong>{{ answers[5] }}</strong>,\n\t\t\t\t\tI have to get to get this\n\t\t\t\t\tTopCoder challenge done by the end of the day. Was hoping you could check my\n\t\t\t\t\tcode? (\u3065\uFF61\u25D5\u203F\u203F\u25D5\uFF61)\u3065, From <strong>{{ answers[4] }}</strong>\u201D</p>\n\t\t\t\t\t\n\t\t\t\t\t<p>It was no trouble for  me, and I couldn\u2019t miss the opportunity to help out\n\t\t\t\t\ta friend like <strong>{{ answers[4] }}</strong>.\n\t\t\t\t\tAs I read, I realized the both of us\n\t\t\t\t\twere writing for the same challenge, and {{ gender ? \'his\':\'her\'}}\n\t\t\t\t\t<strong>{{ answers[6]}}</strong> was nothing sort of\n\t\t\t\t\tbrilliant. Line after line was like reading from\n\t\t\t\t\t<strong>{{ answers[7] }}</strong>.\n\t\t\t\t\t{{gender?\'His\':\'Her\'}} code was better\n\t\t\t\t\tthan mine and if {{ gender? \'he\':\'she\' }} were to submit,\n\t\t\t\t\t{{ gender?\'he\':\'she\'}} would most certainly beat me,\n\t\t\t\t\tyet there was nothing more attractive than the brain, and\n\t\t\t\t\t{{gender?\'his\':"her"}} brain was as\n\t\t\t\t\tsexy as <strong>{{ answers[8] }}</strong> stripping right before my eyes.\n\t\t\t\t\tI didn\u2019t care about the challenge\n\t\t\t\t\tanymore. I started my reply. It said: \u201CYour code looks really good! I think you\n\t\t\t\t\thave a good shot at winning. But also, <strong>{{ answers[4] }}</strong>,\n\t\t\t\t\tI don\u2019t know if you have plans\n\t\t\t\t\ttonight, but I was wondering if maybe you would like to go to\n\t\t\t\t\t<strong>{{ answers[9]}}</strong>\u201D\n\t\t\t\t\tMy nerves\n\t\t\t\t\twere shot, but at least when {{gender ? "he":"she" }}\n\t\t\t\t\tdenied me, I couldn\u2019t feel sorry for\n\t\t\t\t\tmyself because at least I took a chance. In minutes a reply came. It said.\n\t\t\t\t\t\u201CI love <strong>{{ answers[9] }}</strong>! Want to get\n\t\t\t\t\ttogether around <strong>{{ answers[10]}}</strong>?\u201D And like that, I shut\n\t\t\t\t\tdown my computer and forgot about the challenge. I felt too busy: I had\n\t\t\t\t\tto plan for Valentine\u2019s Day.\n\t\t\t\t\t</p>\n\t\t\t\t</div>\n\t\t\t\t<button v-on:click="reset()" type="button">Reset</button>\n\t\t\t</div>\n\t\t',
+								computed: {
+												isReady: function isReady() {
+																return this.$store.getters.isReady;
+												},
+												answers: function answers() {
+																return this.$store.getters.answers;
+												},
+												gender: function gender() {
+																return this.$store.getters.isMale;
+												}
+								},
+								methods: {
+												reset: function reset() {
+																location.reload();
+												}
+								}
+				});
+
+				_vue2.default.component('description', {
+								template: '<p>{{ descriptors[0] }}</p>',
+								computed: {
+												descriptors: function descriptors() {
+																return this.$store.getters.descriptors;
+												}
+								}
+				});
+
+				_vue2.default.component('scanner', {
+								template: '\
+			<input\
+				v-if="count > 0"\
+				ref="input"\
+				class="textfield"\
+				placeholder="type here"\
+				v-on:keyup.enter="submitWord($event)" />',
+								methods: {
+												submitWord: function submitWord(event) {
+																this.$store.commit('addWord', event.target.value);
+																this.$store.commit('removeDescriptor');
+
+																event.target.value = "";
+												}
+								},
+								computed: {
+												count: function count() {
+																return this.$store.getters.count;
+												}
+								}
+				});
+
+				_vue2.default.component('counter', {
+								template: '<p id="counter">{{ count }} words left.</p>',
+								computed: {
+												count: function count() {
+																var storeCount = this.$store.getters.count;
+
+																if (storeCount === 0) {
+																				this.$store.commit('show');
+																}
+
+																return storeCount;
+												}
+								}
+				});
+
+				new _vue2.default({
+								el: '#app',
+								store: _store.store
+				});
+};
 
 /***/ })
 /******/ ]);
